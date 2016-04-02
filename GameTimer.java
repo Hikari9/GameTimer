@@ -215,15 +215,6 @@ public abstract class GameTimer implements Runnable {
 	////////////////////
 	/// RESCHEDULING ///
 	////////////////////
-	
-	/**
-	 * Stops and starts the timer again.
-	 */
-
-	public void restart() {
-		stop();
-		start();
-	}
 
 	protected boolean reschedulable;
 
@@ -276,21 +267,18 @@ public abstract class GameTimer implements Runnable {
 			 */
 
 			public boolean update() {
-				if (timer.fps() != previousFps || timer.fixedRate() != previousFixedRate) {
-					previousFps = timer.fps();
-					previousFixedRate = timer.fixedRate();
+				float fps = timer.fps();
+				boolean fixedRate = timer.fixedRate();
+				if (fps != previousFps || fixedRate != previousFixedRate) {
+					previousFps = fps;
+					previousFixedRate = fixedRate;
 					return true;
 				}
 				return false;
 			}
 		}
-
-		/**
-		 * The concurrent queue that contains the nodes for rescheduling.
-		 * This allows thread-safe operations even when values keep on changing.
-		 */
 		
-		private static ConcurrentLinkedQueue<Node> list = null;
+		private static LinkedList<Node> list = null;
 
 		/**
 		 * Adds a timer to the reschedulables. Starts a scheduled thread if called for the first time.
@@ -300,13 +288,12 @@ public abstract class GameTimer implements Runnable {
 		public static void add(GameTimer timer) {
 			if (timer.isReschedulable()) {
 				if (list == null) {
-					list = new ConcurrentLinkedQueue<Node>();
+					list = new LinkedList<Node>();
 					GameTimer.getScheduler().scheduleAtFixedRate(new Rescheduler(), 1, 200, TimeUnit.MILLISECONDS);
 				}
-				list.offer(new Node(timer));
+				list.add(new Node(timer));
 			}
 		}
-
 		
 		/**
 		 * This is the main method called by the rescheduler every 200ms.
@@ -314,7 +301,7 @@ public abstract class GameTimer implements Runnable {
 
 		public void run() {
 			try {
-				for (Iterator<Node> it = list.iterator(); it.hasNext();) {
+				for (ListIterator<Node> it = list.listIterator(); it.hasNext();) {
 					Node node = it.next();
 					if (!node.timer.isReschedulable())
 						it.remove();
